@@ -17,6 +17,8 @@
 > [!CAUTION]
 > GradientTool is currently in beta
 
+<img width="622" height="626" alt="UnrealEditor-Win64-DebugGame_2026-08-01_16-19-24" src="https://github.com/user-attachments/assets/ca286cd7-8ebf-4f8e-9fd4-9b24c980164d" />
+
 ## How to Use
 
 Right click in the Content Browser and pick **Texture ▸ Gradient**.
