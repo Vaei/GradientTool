@@ -8,6 +8,7 @@
 
 class IDetailsView;
 class SGradientStopBar;
+class SVerticalBox;
 class UGradientAsset;
 
 class FGradientAssetEditorToolkit : public FAssetEditorToolkit, public FEditorUndoClient
@@ -43,6 +44,15 @@ private:
 	void ExtendToolbar();
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
+	/** Recreates one row per gradient. Only safe when the gradient count changed. */
+	void RebuildGradientList();
+	TSharedRef<SWidget> BuildGradientRow(int32 GradientIndex);
+
+	void AddGradient();
+	void RemoveGradient(int32 GradientIndex);
+	void RenameGradient(int32 GradientIndex, const FText& NewName);
+	bool CanRemoveGradient() const;
+
 	void ReverseStops();
 	void DistributeStopsEvenly();
 	void RebuildTexture();
@@ -54,6 +64,9 @@ private:
 	UGradientAsset* GetGradient() const;
 
 	TSharedPtr<FWorkspaceItem> WorkspaceMenuCategory;
-	TSharedPtr<SGradientStopBar> StopBar;
+	TSharedPtr<SVerticalBox> GradientList;
+	TArray<TSharedPtr<SGradientStopBar>> StopBars;
 	TSharedPtr<IDetailsView> DetailsView;
+
+	int32 SelectedGradient = 0;
 };

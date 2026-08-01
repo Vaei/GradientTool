@@ -4,6 +4,74 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GradientTypes)
 
+FGradientLayer::FGradientLayer()
+	: FGradientLayer(FName(TEXT("Gradient")))
+{}
+
+FGradientLayer::FGradientLayer(FName InName)
+	: Name(InName)
+	, Stops({ FGradientStop(0.f, FLinearColor::Black), FGradientStop(1.f, FLinearColor::White) })
+{}
+
+FLinearColor FGradientLayer::Evaluate(float Time) const
+{
+	return GradientTool::EvaluateGradient(Stops, BlendSpace, Time);
+}
+
+void FGradientLayer::Sample(int32 NumSamples, TArray<FLinearColor>& OutColors) const
+{
+	GradientTool::SampleGradient(Stops, BlendSpace, NumSamples, OutColors);
+}
+
+int32 FGradientLayer::SortStops(int32 TrackedIndex)
+{
+	const int32 NumStops = Stops.Num();
+	if (NumStops < 2)
+	{
+		return TrackedIndex;
+	}
+
+	TArray<int32> Order;
+	Order.Reserve(NumStops);
+	for (int32 Index = 0; Index < NumStops; ++Index)
+	{
+		Order.Add(Index);
+	}
+
+	Order.StableSort([this](int32 A, int32 B) { return Stops[A].Time < Stops[B].Time; });
+
+	bool bReordered = false;
+	for (int32 Index = 0; Index < NumStops; ++Index)
+	{
+		if (Order[Index] != Index)
+		{
+			bReordered = true;
+			break;
+		}
+	}
+
+	if (!bReordered)
+	{
+		return TrackedIndex;
+	}
+
+	TArray<FGradientStop> Sorted;
+	Sorted.Reserve(NumStops);
+
+	int32 NewTrackedIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < NumStops; ++Index)
+	{
+		if (Order[Index] == TrackedIndex)
+		{
+			NewTrackedIndex = Index;
+		}
+		Sorted.Add(Stops[Order[Index]]);
+	}
+
+	Stops = MoveTemp(Sorted);
+	return NewTrackedIndex;
+}
+
 namespace GradientTool
 {
 namespace Private

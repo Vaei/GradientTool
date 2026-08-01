@@ -19,11 +19,7 @@ UObject* UGradientAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPar
 {
 	UGradientAsset* Gradient = NewObject<UGradientAsset>(InParent, InClass, InName, Flags);
 
-	Gradient->Stops =
-	{
-		FGradientStop(0.f, FLinearColor::Black),
-		FGradientStop(1.f, FLinearColor::White),
-	};
+	Gradient->Gradients.Add(FGradientLayer());
 
 	GradientToolEditor::RebuildGradient(Gradient);
 

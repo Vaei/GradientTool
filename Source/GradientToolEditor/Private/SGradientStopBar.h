@@ -10,15 +10,23 @@
 class FScopedTransaction;
 class UGradientAsset;
 
-/** Gradient strip with draggable colour stops beneath it. */
+/** Gradient strip with draggable colour stops beneath it, editing one gradient of an atlas. */
 class SGradientStopBar : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SGradientStopBar) {}
+	SLATE_BEGIN_ARGS(SGradientStopBar)
+		: _GradientIndex(0)
+	{}
+
+		/** Which gradient of the atlas this bar edits. */
+		SLATE_ARGUMENT(int32, GradientIndex)
 
 		/** Raised after any edit that changed the gradient. */
 		SLATE_EVENT(FSimpleDelegate, OnGradientChanged)
+
+		/** Raised when the user interacts with this bar. */
+		SLATE_EVENT(FSimpleDelegate, OnSelected)
 
 	SLATE_END_ARGS()
 
@@ -46,6 +54,8 @@ private:
 	static constexpr float HandleHalfWidth = 6.f;
 	static constexpr int32 PreviewSamples = 256;
 
+	FGradientLayer* GetLayer() const;
+
 	float TimeToLocalX(float LocalSizeX, float Time) const;
 	float LocalXToTime(float LocalSizeX, float LocalX) const;
 	int32 FindStopAtLocalX(float LocalSizeX, float LocalX) const;
@@ -63,7 +73,10 @@ private:
 	TSharedRef<SWidget> BuildStopContextMenu(int32 StopIndex);
 
 	TWeakObjectPtr<UGradientAsset> Gradient;
+	int32 GradientIndex = 0;
+
 	FSimpleDelegate OnGradientChanged;
+	FSimpleDelegate OnSelected;
 
 	TSharedPtr<class SComplexGradient> GradientWidget;
 	TArray<FLinearColor> PreviewColors;

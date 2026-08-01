@@ -3,6 +3,7 @@
 #include "GradientTextureBuilder.h"
 
 #include "GradientAsset.h"
+#include "MaterialExpressionGradient.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -10,9 +11,12 @@
 #include "Containers/Ticker.h"
 #include "Engine/Texture2D.h"
 #include "IAssetTools.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
+#include "UObject/UObjectIterator.h"
 
 namespace GradientToolEditor
 {
@@ -31,6 +35,44 @@ namespace Private
 		SaveArgs.SaveFlags = SAVE_NoError;
 
 		UPackage::SavePackage(Package, Texture, *FileName, SaveArgs);
+	}
+
+	/**
+	 * Nodes address a row by name, so the row a name resolves to is baked into compiled shaders.
+	 * Materials that are not loaded translate afresh when they are, so only the loaded ones need this.
+	 */
+	void RefreshMaterialsUsingGradient(const UGradientAsset* Gradient)
+	{
+		TSet<UMaterial*> Materials;
+		TSet<UMaterialFunction*> Functions;
+
+		for (TObjectIterator<UMaterialExpressionGradientBase> It; It; ++It)
+		{
+			if (It->Gradient != Gradient)
+			{
+				continue;
+			}
+
+			if (UMaterial* Material = It->Material)
+			{
+				Materials.Add(Material);
+			}
+
+			if (UMaterialFunction* Function = It->Function)
+			{
+				Functions.Add(Function);
+			}
+		}
+
+		for (UMaterialFunction* Function : Functions)
+		{
+			Function->PostEditChange();
+		}
+
+		for (UMaterial* Material : Materials)
+		{
+			Material->PostEditChange();
+		}
 	}
 }
 
@@ -88,7 +130,14 @@ void RebuildGradient(UGradientAsset* Gradient)
 		return;
 	}
 
+	const uint32 PreviousLayoutHash = Gradient->GetCachedLayoutHash();
+
 	Gradient->BakeInto(Texture);
+
+	if (PreviousLayoutHash != Gradient->GetCachedLayoutHash())
+	{
+		Private::RefreshMaterialsUsingGradient(Gradient);
+	}
 
 	// A brand new texture goes to disk straight away, or the gradient's reference to it would
 	// dangle for anyone who saved the gradient on its own.
@@ -116,6 +165,26 @@ void HandleAssetLoaded(UObject* Asset)
 			if (UGradientAsset* LoadedGradient = WeakGradient.Get())
 			{
 				RebuildGradient(LoadedGradient);
+			}
+			return false;
+		}), 0.f);
+}
+
+void HandleAssetDuplicated(UGradientAsset* Gradient)
+{
+	if (!Gradient)
+	{
+		return;
+	}
+
+	// The copy is not in its final package until the duplication finishes, and the texture is
+	// named after that package.
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+		[WeakGradient = TWeakObjectPtr<UGradientAsset>(Gradient)](float)
+		{
+			if (UGradientAsset* Copy = WeakGradient.Get())
+			{
+				RebuildGradient(Copy);
 			}
 			return false;
 		}), 0.f);

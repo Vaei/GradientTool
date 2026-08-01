@@ -19,7 +19,9 @@
 void SGradientStopBar::Construct(const FArguments& InArgs, UGradientAsset* InGradient)
 {
 	Gradient = InGradient;
+	GradientIndex = InArgs._GradientIndex;
 	OnGradientChanged = InArgs._OnGradientChanged;
+	OnSelected = InArgs._OnSelected;
 
 	ChildSlot
 	.Padding(HandleHalfWidth, 0.f, HandleHalfWidth, HandleAreaHeight)
@@ -37,13 +39,19 @@ void SGradientStopBar::Construct(const FArguments& InArgs, UGradientAsset* InGra
 	Refresh();
 }
 
+FGradientLayer* SGradientStopBar::GetLayer() const
+{
+	UGradientAsset* GradientAsset = Gradient.Get();
+	return (GradientAsset && GradientAsset->Gradients.IsValidIndex(GradientIndex)) ? &GradientAsset->Gradients[GradientIndex] : nullptr;
+}
+
 void SGradientStopBar::Refresh()
 {
-	if (const UGradientAsset* GradientAsset = Gradient.Get())
+	if (const FGradientLayer* Layer = GetLayer())
 	{
-		GradientAsset->Sample(PreviewSamples, PreviewColors);
+		Layer->Sample(PreviewSamples, PreviewColors);
 
-		if (!GradientAsset->Stops.IsValidIndex(SelectedStop))
+		if (!Layer->Stops.IsValidIndex(SelectedStop))
 		{
 			SelectedStop = INDEX_NONE;
 		}
@@ -76,8 +84,8 @@ float SGradientStopBar::LocalXToTime(float LocalSizeX, float LocalX) const
 
 int32 SGradientStopBar::FindStopAtLocalX(float LocalSizeX, float LocalX) const
 {
-	const UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset)
+	const FGradientLayer* Layer = GetLayer();
+	if (!Layer)
 	{
 		return INDEX_NONE;
 	}
@@ -85,9 +93,9 @@ int32 SGradientStopBar::FindStopAtLocalX(float LocalSizeX, float LocalX) const
 	int32 Closest = INDEX_NONE;
 	float ClosestDistance = HandleHalfWidth + 2.f;
 
-	for (int32 Index = 0; Index < GradientAsset->Stops.Num(); ++Index)
+	for (int32 Index = 0; Index < Layer->Stops.Num(); ++Index)
 	{
-		const float Distance = FMath::Abs(TimeToLocalX(LocalSizeX, GradientAsset->Stops[Index].Time) - LocalX);
+		const float Distance = FMath::Abs(TimeToLocalX(LocalSizeX, Layer->Stops[Index].Time) - LocalX);
 		if (Distance <= ClosestDistance)
 		{
 			ClosestDistance = Distance;
@@ -102,8 +110,8 @@ int32 SGradientStopBar::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 {
 	int32 Layer = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 
-	const UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset)
+	const FGradientLayer* GradientLayer = GetLayer();
+	if (!GradientLayer)
 	{
 		return Layer;
 	}
@@ -117,9 +125,9 @@ int32 SGradientStopBar::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 
 	++Layer;
 
-	for (int32 Index = 0; Index < GradientAsset->Stops.Num(); ++Index)
+	for (int32 Index = 0; Index < GradientLayer->Stops.Num(); ++Index)
 	{
-		const FGradientStop& Stop = GradientAsset->Stops[Index];
+		const FGradientStop& Stop = GradientLayer->Stops[Index];
 		const bool bSelected = (Index == SelectedStop);
 		const float CentreX = TimeToLocalX(LocalSizeX, Stop.Time);
 
@@ -149,10 +157,13 @@ int32 SGradientStopBar::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 FReply SGradientStopBar::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset)
+	FGradientLayer* Layer = GetLayer();
+	if (!GradientAsset || !Layer)
 	{
 		return FReply::Unhandled();
 	}
+
+	OnSelected.ExecuteIfBound();
 
 	const FVector2f LocalPosition = FVector2f(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
 	const float LocalSizeX = static_cast<float>(MyGeometry.GetLocalSize().X);
@@ -213,13 +224,13 @@ FReply SGradientStopBar::OnMouseButtonDown(const FGeometry& MyGeometry, const FP
 
 FReply SGradientStopBar::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset || DraggedStop == INDEX_NONE || !HasMouseCapture())
+	FGradientLayer* Layer = GetLayer();
+	if (!Layer || DraggedStop == INDEX_NONE || !HasMouseCapture())
 	{
 		return FReply::Unhandled();
 	}
 
-	if (!GradientAsset->Stops.IsValidIndex(DraggedStop))
+	if (!Layer->Stops.IsValidIndex(DraggedStop))
 	{
 		DraggedStop = INDEX_NONE;
 		return FReply::Unhandled();
@@ -228,13 +239,13 @@ FReply SGradientStopBar::OnMouseMove(const FGeometry& MyGeometry, const FPointer
 	const FVector2f LocalPosition = FVector2f(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
 	const float NewTime = LocalXToTime(static_cast<float>(MyGeometry.GetLocalSize().X), LocalPosition.X);
 
-	if (FMath::IsNearlyEqual(GradientAsset->Stops[DraggedStop].Time, NewTime))
+	if (FMath::IsNearlyEqual(Layer->Stops[DraggedStop].Time, NewTime))
 	{
 		return FReply::Handled();
 	}
 
-	GradientAsset->Stops[DraggedStop].Time = NewTime;
-	DraggedStop = GradientAsset->SortStops(DraggedStop);
+	Layer->Stops[DraggedStop].Time = NewTime;
+	DraggedStop = Layer->SortStops(DraggedStop);
 	SelectedStop = DraggedStop;
 	bDragMoved = true;
 
@@ -321,14 +332,14 @@ void SGradientStopBar::CommitChange(bool bRebuild)
 
 void SGradientStopBar::AddStopAtTime(float Time)
 {
-	UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset)
+	FGradientLayer* Layer = GetLayer();
+	if (!Layer)
 	{
 		return;
 	}
 
-	const int32 NewIndex = GradientAsset->Stops.Add(FGradientStop(Time, GradientAsset->Evaluate(Time)));
-	SelectedStop = GradientAsset->SortStops(NewIndex);
+	const int32 NewIndex = Layer->Stops.Add(FGradientStop(Time, Layer->Evaluate(Time)));
+	SelectedStop = Layer->SortStops(NewIndex);
 
 	CommitChange(/*bRebuild*/true);
 }
@@ -336,7 +347,8 @@ void SGradientStopBar::AddStopAtTime(float Time)
 void SGradientStopBar::DeleteStop(int32 StopIndex)
 {
 	UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset || !GradientAsset->Stops.IsValidIndex(StopIndex) || GradientAsset->Stops.Num() <= 2)
+	FGradientLayer* Layer = GetLayer();
+	if (!GradientAsset || !Layer || !Layer->Stops.IsValidIndex(StopIndex) || Layer->Stops.Num() <= 2)
 	{
 		return;
 	}
@@ -344,7 +356,7 @@ void SGradientStopBar::DeleteStop(int32 StopIndex)
 	const FScopedTransaction Transaction(LOCTEXT("DeleteStop", "Delete Gradient Stop"));
 	GradientAsset->Modify();
 
-	GradientAsset->Stops.RemoveAt(StopIndex);
+	Layer->Stops.RemoveAt(StopIndex);
 	SelectedStop = INDEX_NONE;
 
 	CommitChange(/*bRebuild*/true);
@@ -353,7 +365,8 @@ void SGradientStopBar::DeleteStop(int32 StopIndex)
 void SGradientStopBar::SetStopInterp(int32 StopIndex, EGradientInterp Interp)
 {
 	UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset || !GradientAsset->Stops.IsValidIndex(StopIndex))
+	FGradientLayer* Layer = GetLayer();
+	if (!GradientAsset || !Layer || !Layer->Stops.IsValidIndex(StopIndex))
 	{
 		return;
 	}
@@ -361,15 +374,15 @@ void SGradientStopBar::SetStopInterp(int32 StopIndex, EGradientInterp Interp)
 	const FScopedTransaction Transaction(LOCTEXT("SetStopInterp", "Set Gradient Stop Interpolation"));
 	GradientAsset->Modify();
 
-	GradientAsset->Stops[StopIndex].Interp = Interp;
+	Layer->Stops[StopIndex].Interp = Interp;
 
 	CommitChange(/*bRebuild*/true);
 }
 
 void SGradientStopBar::OpenStopColorPicker(int32 StopIndex)
 {
-	const UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset || !GradientAsset->Stops.IsValidIndex(StopIndex))
+	const FGradientLayer* Layer = GetLayer();
+	if (!Layer || !Layer->Stops.IsValidIndex(StopIndex))
 	{
 		return;
 	}
@@ -380,7 +393,7 @@ void SGradientStopBar::OpenStopColorPicker(int32 StopIndex)
 	PickerArgs.bIsModal = false;
 	PickerArgs.bUseAlpha = true;
 	PickerArgs.ParentWidget = SharedThis(this);
-	PickerArgs.InitialColor = GradientAsset->Stops[StopIndex].Color;
+	PickerArgs.InitialColor = Layer->Stops[StopIndex].Color;
 	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SGradientStopBar::OnStopColorCommitted);
 
 	PickerArgs.OnInteractivePickBegin = FSimpleDelegate::CreateSPLambda(this, [this]()
@@ -406,7 +419,8 @@ void SGradientStopBar::OpenStopColorPicker(int32 StopIndex)
 void SGradientStopBar::OnStopColorCommitted(FLinearColor NewColor)
 {
 	UGradientAsset* GradientAsset = Gradient.Get();
-	if (!GradientAsset || !GradientAsset->Stops.IsValidIndex(ColorPickerStop))
+	FGradientLayer* Layer = GetLayer();
+	if (!GradientAsset || !Layer || !Layer->Stops.IsValidIndex(ColorPickerStop))
 	{
 		return;
 	}
@@ -414,7 +428,7 @@ void SGradientStopBar::OnStopColorCommitted(FLinearColor NewColor)
 	// Dragging inside the picker fires this continuously; the bake waits for the drag to end.
 	if (bInteractiveColorPick)
 	{
-		GradientAsset->Stops[ColorPickerStop].Color = NewColor;
+		Layer->Stops[ColorPickerStop].Color = NewColor;
 		CommitChange(/*bRebuild*/false);
 		return;
 	}
@@ -422,7 +436,7 @@ void SGradientStopBar::OnStopColorCommitted(FLinearColor NewColor)
 	const FScopedTransaction Transaction(LOCTEXT("SetStopColor", "Set Gradient Stop Colour"));
 	GradientAsset->Modify();
 
-	GradientAsset->Stops[ColorPickerStop].Color = NewColor;
+	Layer->Stops[ColorPickerStop].Color = NewColor;
 
 	CommitChange(/*bRebuild*/true);
 }
@@ -464,8 +478,8 @@ TSharedRef<SWidget> SGradientStopBar::BuildStopContextMenu(int32 StopIndex)
 				FExecuteAction::CreateSP(this, &SGradientStopBar::DeleteStop, StopIndex),
 				FCanExecuteAction::CreateSPLambda(this, [this]()
 				{
-					const UGradientAsset* GradientAsset = Gradient.Get();
-					return GradientAsset && GradientAsset->Stops.Num() > 2;
+					const FGradientLayer* Layer = GetLayer();
+					return Layer && Layer->Stops.Num() > 2;
 				})));
 	}
 	MenuBuilder.EndSection();

@@ -76,6 +76,35 @@ struct FGradientStop
 	EGradientInterp Interp = EGradientInterp::Linear;
 };
 
+/** One gradient inside an atlas. Bakes to a single row of the texture. */
+USTRUCT(BlueprintType)
+struct FGradientLayer
+{
+	GENERATED_BODY()
+
+	GRADIENTTOOL_API FGradientLayer();
+	GRADIENTTOOL_API explicit FGradientLayer(FName InName);
+
+	/** Identifies this gradient within the atlas. Material nodes address the row by this. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gradient)
+	FName Name;
+
+	/** Sorted ascending by Time. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gradient, meta=(TitleProperty="Time"))
+	TArray<FGradientStop> Stops;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gradient)
+	EGradientBlendSpace BlendSpace = EGradientBlendSpace::Linear;
+
+	GRADIENTTOOL_API FLinearColor Evaluate(float Time) const;
+
+	/** Fills OutColors with NumSamples evenly spaced evaluations spanning 0 to 1 inclusive. */
+	GRADIENTTOOL_API void Sample(int32 NumSamples, TArray<FLinearColor>& OutColors) const;
+
+	/** Sorts Stops ascending by Time. Returns where the stop at TrackedIndex ended up. */
+	GRADIENTTOOL_API int32 SortStops(int32 TrackedIndex = INDEX_NONE);
+};
+
 namespace GradientTool
 {
 	/** Stops must be sorted ascending by Time. Times outside the first and last stop clamp. */

@@ -14,6 +14,7 @@
 void FGradientToolEditorModule::StartupModule()
 {
 	UGradientAsset::OnGradientAssetChanged.AddStatic(&GradientToolEditor::RebuildGradient);
+	UGradientAsset::OnGradientAssetDuplicated.AddStatic(&GradientToolEditor::HandleAssetDuplicated);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	AssetRenamedHandle = AssetRegistryModule.Get().OnAssetRenamed().AddStatic(&GradientToolEditor::HandleAssetRenamed);
@@ -26,6 +27,7 @@ void FGradientToolEditorModule::StartupModule()
 void FGradientToolEditorModule::ShutdownModule()
 {
 	UGradientAsset::OnGradientAssetChanged.RemoveAll(this);
+	UGradientAsset::OnGradientAssetDuplicated.RemoveAll(this);
 
 	FCoreUObjectDelegates::OnAssetLoaded.Remove(AssetLoadedHandle);
 

@@ -16,7 +16,7 @@ namespace GradientToolEditor
 	/** Returns the gradient's companion texture, creating it beside the gradient if it does not exist yet. */
 	UTexture2D* EnsureTexture(UGradientAsset* Gradient);
 
-	/** Ensures the texture exists, re-bakes it from the stops, and dirties both packages. */
+	/** Ensures the texture exists, re-bakes it from the gradients, and dirties both packages. */
 	void RebuildGradient(UGradientAsset* Gradient);
 
 	/** Keeps a companion texture named after the gradient that owns it. */
@@ -24,4 +24,7 @@ namespace GradientToolEditor
 
 	/** Regenerates the companion texture for a gradient that loaded without one. */
 	void HandleAssetLoaded(UObject* Asset);
+
+	/** Gives a freshly duplicated gradient a companion texture named after the copy. */
+	void HandleAssetDuplicated(UGradientAsset* Gradient);
 }
