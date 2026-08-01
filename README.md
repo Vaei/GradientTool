@@ -18,7 +18,7 @@
 > [!CAUTION]
 > GradientTool is currently in beta
 
-<img width="622" height="626" alt="UnrealEditor-Win64-DebugGame_2026-08-01_16-19-24" src="https://github.com/user-attachments/assets/ca286cd7-8ebf-4f8e-9fd4-9b24c980164d" />
+<img width="724" height="890" alt="UnrealEditor-Win64-DebugGame_2026-08-01_21-58-11" src="https://github.com/user-attachments/assets/6b12fcfb-37e2-4792-a382-7901107f1a80" />
 
 ## How to Use
 
@@ -34,6 +34,23 @@ You get two assets side by side:
 Point a **Sample Gradient** node at `GR_MyGradient`, pick a gradient by name, and feed it a `Time`.
 Or drop `T_MyGradient` straight into a Texture Sample if you only have one gradient. Edit the
 gradient and everything updates underneath, including any open material editor.
+
+### Example Material
+
+<img width="945" height="1077" alt="image" src="https://github.com/user-attachments/assets/d931d8b7-595f-4f1c-bc06-80f649125f21" />
+
+Add a `Sample Gradient` to your material graph. Assign your gradient.
+
+> [!NOTE]
+> This assigned gradient will determine which enum names get populated from the gradient asset - these cannot be changed in the material instance, they remain an index into the gradient array.
+
+Add a `Texture Object Parameter`. Assign the texture matching the assigned gradient, the sampler type will auto change to Linear Color. Connect it to `Sample Gradient::Atlas`. 
+
+Add a `Scalar Parameter`. Assign the Control Type as Enumeration, and assign the gradient to this also.
+
+This is the resulting material instance:
+
+<img width="447" height="201" alt="image" src="https://github.com/user-attachments/assets/c9f99ed1-0a87-4aaa-aede-64cfddf8f568" />
 
 ### Editing
 
