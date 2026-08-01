@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0.0",
+	"FriendlyName": "GradientTool",
+	"Description": "Gradient assets that keep a texture baked. Author colour stops and the gradient rewrites its companion Texture2D on every edit, so materials never sample a stale ramp.",
+	"Category": "Tooling",
+	"CreatedBy": "Jared Taylor (Vaei)",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "GradientTool",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GradientToolEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
